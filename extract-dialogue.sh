@@ -3,10 +3,15 @@ temp=$(mktemp --directory)
 trap 'rm -rf $temp' EXIT
 
 usage() {
-    printf 'Usage: %s -i <video-file> [-o <output-file>]
+    printf 'Usage: %s -i <video-file> [-a <audio-track] [-s <subtitle-track>] [-o <output-file>]
 Options:
     -i Specify the video input
-    -o Specify the output filename\n' "$(basename $0)"
+    -a Specify the audio track number to use
+    -s Specify the subtitle track number to use
+    -o Specify the output filename
+    -h Display this usage message
+
+Only the -i option is required. If not specified, the default behavior is to use the first audio track and the first subtitle track. The default output name is "output.mp3". Similar to ffmpeg, the extension of the output name determines the format of the output.\n' "$(basename $0)"
 }
 
 if [ -z "$1" ]; then
@@ -17,6 +22,8 @@ fi
 while [ -n "$1" ]; do
     case "$1" in
         "-i") shift; file="$1"   ;;
+        "-a") shift; audio="$1"  ;;
+        "-s") shift; subs="$1"   ;;
         "-o") shift; output="$1" ;;
         "-h") usage ; exit       ;;
         *) echo "There was an error parsing arguments. Make sure to use the -i option." >&2 ; exit 1 ;;
@@ -24,8 +31,8 @@ while [ -n "$1" ]; do
     shift
 done
 
-audio_id=$(ffprobe "$file" 2>&1 | grep "\(jpn\|jp\).*Audio" | head -n 1 | grep -o '[0-9]:[0-9]')
-subs_id=$(ffprobe "$file" 2>&1 | grep "Sub.*\(srt\|ssa\|ass\)" | head -n 1 | grep -o '[0-9]:[0-9]')
+audio_id=$(ffprobe "$file" 2>&1 | grep "Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
+subs_id=$(ffprobe "$file" 2>&1 | grep "Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
 
 if [ -z $subs_id ]; then
     echo "Error: No text-based subtitles found." >&2
