@@ -59,4 +59,4 @@ for timestamp in $timestamps; do
     fi
 done
 
-ffmpeg -safe 0 -f concat -i "$temp/list.txt" -c copy "${output:-output.mp3}"
+ffmpeg -safe 0 -f concat -i "$temp/list.txt" "${output:-output.mp3}"
