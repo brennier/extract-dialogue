@@ -11,7 +11,10 @@ Options:
     -o Specify the output filename
     -h Display this usage message
 
-Only the -i option is required. If not specified, the default behavior is to use the first audio track and the first subtitle track. The default output name is "output.mp3". Similar to ffmpeg, the extension of the output name determines the format of the output.\n' "$(basename $0)"
+Only the -i option is required. If not specified, the default behavior is to use
+the first audio track and the first subtitle track. The default output name is
+"output.mp3". Similar to ffmpeg, the extension of the output name determines the
+format of the output.\n' "$(basename $0)"
 }
 
 if [ -z "$1" ]; then
