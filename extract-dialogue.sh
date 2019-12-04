@@ -3,8 +3,14 @@ temp=$(mktemp --directory)
 trap 'rm -rf $temp' EXIT
 
 audio_id=$(ffprobe "$1" 2>&1 | grep "\(jpn\|jp\).*Audio" | head -n 1 | grep -o '[0-9]:[0-9]')
+subs_id=$(ffprobe "$1" 2>&1 | grep "Sub.*\(srt\|ssa\|ass\)" | head -n 1 | grep -o '[0-9]:[0-9]')
 
-ffmpeg -i "$1" -map 0:s:0 "$temp/subs.ass" 2> /dev/null
+if [ -z $subs_id ]; then
+    echo "Error: No text-based subtitles found." >&2
+    exit 1
+fi
+
+ffmpeg -i "$1" -map $subs_id "$temp/subs.ass" 2> /dev/null
 timestamps=$(grep "^Dialogue:.*Default" "$temp/subs.ass" | cut -f "2,3" -d "," | tr '\n' ' ')
 
 num=1
@@ -21,4 +27,4 @@ for timestamp in $timestamps; do
     fi
 done
 
-ffmpeg -y -safe 0 -f concat -i $temp/list.txt -c copy output.mp3
+ffmpeg -safe 0 -f concat -i "$temp/list.txt" -c copy output.mp3
