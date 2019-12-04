@@ -3,7 +3,7 @@ temp=$(mktemp --directory)
 trap 'rm -rf $temp' EXIT
 
 ffmpeg -i "$1" -map 0:s:0 "$temp/subs.ass" 2> /dev/null
-timestamps=$(grep "^Dialogue:" "$temp/subs.ass" | cut -f "2,3" -d "," | uniq | head -n 50 | tr '\n' ' ')
+timestamps=$(grep "^Dialogue:" "$temp/subs.ass" | cut -f "2,3" -d "," | grep "Default" | tr '\n' ' ')
 
 num=1
 for timestamp in $timestamps; do
