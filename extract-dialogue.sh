@@ -1,5 +1,5 @@
 #!/bin/sh
-temp=$(mktemp --directory)
+temp=$(mktemp -d)
 trap 'rm -rf $temp' EXIT
 
 usage() {
@@ -18,7 +18,7 @@ format of the output.\n' "$(basename $0)"
     exit 0
 }
 
-error () {
+error() {
     echo "Error: $1" >&2
     exit 1
 }
@@ -37,13 +37,13 @@ while [ -n "$1" ]; do
     shift
 done
 
-audio_id=$(ffprobe "$file" 2>&1 | grep "Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
-subs_id=$(ffprobe "$file" 2>&1 | grep "Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
+audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
+subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
 
 [ -z "$subs_id" ] && error "No text-based subtitles found."
 
 ffmpeg -loglevel fatal -i "$file" -map $subs_id "$temp/subs.ass"
-timestamps=$(grep "^Dialogue:.*Default" "$temp/subs.ass" | cut -f "2,3" -d "," | tr '\n' ' ')
+timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | tr '\n' ' ')
 
 [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
 
@@ -51,14 +51,15 @@ num=1
 for timestamp in $timestamps; do
     begin=$(echo "$timestamp" | cut -f1 -d,)
     end=$(  echo "$timestamp" | cut -f2 -d,)
-    ffmpeg -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.mp3"
+    ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.mp3"
     if ffprobe -i "$temp/$num.mp3" 2> /dev/null; then
         echo "$num.mp3 : $begin -> $end"
         echo "file '$temp/$num.mp3'" >> "$temp/list.txt"
         num="$(( $num + 1 ))"
-    else
-        rm "$temp/$num.mp3"
     fi
 done
 
+echo "Concatenating audio files..."
 ffmpeg -loglevel fatal -safe 0 -f concat -i "$temp/list.txt" "${output:-output.mp3}"
+
+[ $? -eq 0 ] && echo "File '${output:=output.mp3}' was created successfully."

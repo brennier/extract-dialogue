@@ -19,8 +19,9 @@ format of the output.
 ## Future Plans
 * ~~Add command line options to specify the audio and subtitles track~~
 * ~~Add option to specify output name~~
+* Improve subtitle parsing
 * Add option to use an external subtitles file
-* Write documentation and error-handling
+* Improve documentation and error-handling
 * Add the option to pad the timestamps in the subtitles file
 * Automatically merge overlapping timestamps (especially when using padding)
 * Parse bitmap-based subtitle files
