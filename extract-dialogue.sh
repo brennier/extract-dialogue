@@ -25,11 +25,20 @@ error() {
 
 [ -z "$1" ] && usage
 
+dialogues () {
+    extension=$(echo "$1" | sed 's/.*\.\(.*\)/\1/')
+    if [ "$extension" = 'ass' ]; then
+        grep "^Dialogue:.*" "$1" | cut -f "2,3" -d "," | uniq | tr '\n' ' '
+    elif [ "$extension" = 'srt' ]; then
+        grep [0-9]*:[0-9]*:[0-9]*,[0-9]* "$1" | uniq | sed 's/,/./g;s/ --> /,/' | tr '\n' ' '
+    fi
+}
+
 while [ -n "$1" ]; do
     case "$1" in
         "-i") shift; file="$1"   ;;
         "-a") shift; audio="$1"  ;;
-        "-s") shift; subs="$1"   ;;
+        "-s"|"-S") shift; subs="$1"   ;;
         "-o") shift; output="$1" ;;
         "-h") usage              ;;
         *) error "There was an error parsing arguments. Make sure to use the -i option." ;;
@@ -38,12 +47,19 @@ while [ -n "$1" ]; do
 done
 
 audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
-subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
 
-[ -z "$subs_id" ] && error "No text-based subtitles found."
+if [ ! -f "$subs" ]; then
+    subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
+    [ -z "$subs_id" ] && error "No text-based subtitles found."
+    subs_file="$temp/subs.ass"
+    ffmpeg -loglevel fatal -i "$file" -map $subs_id "$subs_file"
+else
+    subs_file="$subs"
+fi
 
-ffmpeg -loglevel fatal -i "$file" -map $subs_id "$temp/subs.ass"
-timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | tr '\n' ' ')
+[ ! -f "$subs_file" ] && error "No subtitles file found."
+
+timestamps=$(dialogues "$subs_file")
 
 [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
 
