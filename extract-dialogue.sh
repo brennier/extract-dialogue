@@ -26,6 +26,9 @@ error() {
 [ -z "$1" ] && usage
 
 dialogues () {
+    # Parses the subtitles file to the format BEGIN,END
+    # BEGIN and END are in the format HH:MM:SS.sss
+    # H: hour, M: minute, S: second, s: milisecond
     extension=$(echo "$1" | sed 's/.*\.\(.*\)/\1/')
     if [ "$extension" = 'ass' ]; then
         grep "^Dialogue:.*" "$1" | cut -f "2,3" -d "," | uniq | tr '\n' ' '
@@ -48,6 +51,7 @@ done
 
 audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
 
+# Look for an existing subtitles file, and, if absent, generate one from the video file
 if [ ! -f "$subs" ]; then
     subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
     [ -z "$subs_id" ] && error "No text-based subtitles found."
