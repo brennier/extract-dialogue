@@ -25,6 +25,18 @@ error() {
 
 [ -z "$1" ] && usage
 
+dialogues () {
+    # Parses the subtitles file to the format BEGIN,END
+    # BEGIN and END are in the format HH:MM:SS.sss
+    # H: hour, M: minute, S: second, s: milisecond
+    extension=$(echo "$1" | sed 's/.*\.\(.*\)/\1/')
+    if [ "$extension" = 'ass' ]; then
+        grep "^Dialogue:.*" "$1" | cut -f "2,3" -d "," | uniq | tr '\n' ' '
+    elif [ "$extension" = 'srt' ]; then
+        grep [0-9]*:[0-9]*:[0-9]*,[0-9]* "$1" | uniq | sed 's/,/./g;s/ --> /,/' | tr '\n' ' '
+    fi
+}
+
 while [ -n "$1" ]; do
     case "$1" in
         "-i") shift; file="$1"   ;;
@@ -38,23 +50,33 @@ while [ -n "$1" ]; do
 done
 
 audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
-subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
 
-[ -z "$subs_id" ] && error "No text-based subtitles found."
+# Look for an existing subtitles file, and, if absent, generate one from the video file
+if [ ! -f "$subs" ]; then
+    subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
+    [ -z "$subs_id" ] && error "No text-based subtitles found."
+    subs_file="$temp/subs.ass"
+    ffmpeg -loglevel fatal -i "$file" -map $subs_id "$subs_file"
+else
+    subs_file="$subs"
+fi
 
-ffmpeg -loglevel fatal -i "$file" -map $subs_id "$temp/subs.ass"
-timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | tr '\n' ' ')
+[ ! -f "$subs_file" ] && error "No subtitles file found."
+
+timestamps=$(dialogues "$subs_file")
 
 [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
 
 num=1
+# Use the same extension as the output file for the intermediate files
+ext=$(echo "${output:=output.mp3}" | sed 's/.*\.\(.*\)/\1/')
 for timestamp in $timestamps; do
     begin=$(echo "$timestamp" | cut -f1 -d,)
     end=$(  echo "$timestamp" | cut -f2 -d,)
-    ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.mp3"
-    if ffprobe -i "$temp/$num.mp3" 2> /dev/null; then
-        echo "$num.mp3 : $begin -> $end"
-        echo "file '$temp/$num.mp3'" >> "$temp/list.txt"
+    ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.$ext"
+    if ffprobe -i "$temp/$num.$ext" 2> /dev/null; then
+        echo "$num.$ext : $begin -> $end"
+        echo "file '$temp/$num.$ext'" >> "$temp/list.txt"
         num="$(( $num + 1 ))"
     fi
 done
