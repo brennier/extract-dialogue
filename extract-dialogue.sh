@@ -68,13 +68,15 @@ timestamps=$(dialogues "$subs_file")
 [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
 
 num=1
+# Use the same extension as the output file for the intermediate files
+ext=$(echo "${output:=output.mp3}" | sed 's/.*\.\(.*\)/\1/')
 for timestamp in $timestamps; do
     begin=$(echo "$timestamp" | cut -f1 -d,)
     end=$(  echo "$timestamp" | cut -f2 -d,)
-    ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.mp3"
-    if ffprobe -i "$temp/$num.mp3" 2> /dev/null; then
-        echo "$num.mp3 : $begin -> $end"
-        echo "file '$temp/$num.mp3'" >> "$temp/list.txt"
+    ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.$ext"
+    if ffprobe -i "$temp/$num.$ext" 2> /dev/null; then
+        echo "$num.$ext : $begin -> $end"
+        echo "file '$temp/$num.$ext'" >> "$temp/list.txt"
         num="$(( $num + 1 ))"
     fi
 done
