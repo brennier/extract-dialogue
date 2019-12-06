@@ -38,7 +38,7 @@ while [ -n "$1" ]; do
     case "$1" in
         "-i") shift; file="$1"   ;;
         "-a") shift; audio="$1"  ;;
-        "-s"|"-S") shift; subs="$1"   ;;
+        "-s") shift; subs="$1"   ;;
         "-o") shift; output="$1" ;;
         "-h") usage              ;;
         *) error "There was an error parsing arguments. Make sure to use the -i option." ;;
