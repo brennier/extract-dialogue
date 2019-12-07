@@ -37,11 +37,11 @@ extract_timestamps() {
         [ -z "$subs_id" ] && error "No text-based subtitles found in '$file'."
         ffmpeg -loglevel fatal -i "$file" -map $subs_id "$temp/subs.ass"
     fi
-    timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort | tr '\n' ' ')
+    [ -f "$temp/subs.ass" ] || error "No subtitles file found."
 
-    [ ! -f "$temp/subs.ass" ] && error "No subtitles file found."
+    timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
+
     [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
-
     echo "$timestamps"
 }
 
@@ -51,13 +51,12 @@ merge_timestamps() {
     cur_begin=""
     cur_end=""
     for timestamp in $(cat /dev/stdin); do
-        begin=$(echo "$timestamp" | cut -f1 -d,)
-        end=$(  echo "$timestamp" | cut -f2 -d,)
+        IFS=, read begin end <<< "$timestamp"
         [ -z "$cur_begin" ] && cur_begin="$begin"
         [ -z "$cur_end" ]   && cur_end="$end"
 
         if expr "$cur_end" "<" "$begin" > /dev/null; then
-            echo "$cur_begin,$cur_end "
+            echo "$cur_begin,$cur_end"
             cur_begin="$begin"
             cur_end="$end"
         elif expr "$cur_end" "<" "$end" > /dev/null; then
@@ -74,18 +73,16 @@ pad_timestamps() {
     padding="$(printf "%03d" "$1")"
     [ "$padding" -gt 1000 ] && error "Padding is too large!"
     for timestamp in $(cat /dev/stdin); do
-        begin=$(echo "$timestamp" | cut -f1 -d,)
-        end=$(  echo "$timestamp" | cut -f2 -d,)
-
+        IFS=, read begin end <<< "$timestamp"
         # Use date to shift timestamps
         if expr "$begin" ">" "00:00:00.$padding" > /dev/null; then
-            new_begin=$(date +"%T.%2N" -d "01 Jan 1970 $begin - 0.$padding seconds")
+            new_begin="$(date +"%T.%2N" -d "01 Jan 1970 $begin - 0.$padding seconds")"
         else
             new_begin="00:00:00.000"
         fi
-        new_end=$(date +"%T.%2N" -d "01 Jan 1970 $end + 0.$padding seconds")
+        new_end="$(date +"%T.%2N" -d "01 Jan 1970 $end + 0.$padding seconds")"
 
-        echo "$new_begin,$new_end "
+        echo "$new_begin,$new_end"
     done
 }
 
@@ -104,24 +101,23 @@ while [ -n "$1" ]; do
     shift
 done
 
+timestamps="$(extract_timestamps "$subs" | pad_timestamps "${padding:-100}" | merge_timestamps)"
 audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
 ext=$(echo "${output:=output.mp3}" | sed 's/.*\.//')
-num=1
-
-timestamps="$(extract_timestamps "$subs" | pad_timestamps "${padding:-0}" | merge_timestamps)"
+num="1"
 
 for timestamp in $timestamps; do
-    begin=$(echo "$timestamp" | cut -f1 -d,)
-    end=$(  echo "$timestamp" | cut -f2 -d,)
+    IFS=, read begin end <<< "$timestamp"
     ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.$ext"
     if ffprobe -i "$temp/$num.$ext" 2> /dev/null; then
         echo "$num.$ext : $begin -> $end"
         echo "file '$temp/$num.$ext'" >> "$temp/list.txt"
-        num="$(( $num + 1 ))"
+        (( num++ ))
     fi
 done
 
+base=$(basename "$file" | sed 's/\..*//')
 echo "Concatenating audio files..."
-ffmpeg -loglevel fatal -safe 0 -f concat -i "$temp/list.txt" "${output:-output.mp3}"
+ffmpeg -loglevel fatal -safe 0 -f concat -i "$temp/list.txt" "${output:-$base.mp3}"
 
 [ $? -eq 0 ] && echo "File '${output:=output.mp3}' was created successfully."
