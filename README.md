@@ -9,7 +9,8 @@ There are several options that you can specify:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -a   Specify the audio track number to use  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -s   Either specify the subtitle track number to use or specify the filename of an external subtitle file  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -o   Specify the output filename  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -p   Specify padding (in milliseconds) around subtitle timestamps. Must be less than 1000  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -p   Specify padding (in milliseconds) around subtitle timestamps; must be less than 1000  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -k   Keep intermediate files stored under /tmp; useful for debugging purposes  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -h   Display usage message
 
 Only the -i option is required. If not specified, the default behavior is to use the first audio track and the first subtitle track. The default output name is simply the name of the video file with the extension changed to .mp3.  The default padding is 100 milliseconds. Similar to ffmpeg, the extension of the output name determines the format of the output.

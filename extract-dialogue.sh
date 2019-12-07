@@ -1,21 +1,16 @@
 #!/bin/sh
-temp=$(mktemp -d)
-trap 'rm -rf $temp' EXIT
-
 usage() {
-    printf 'Usage: %s -i <video-file> [-a <audio-track] [-s <subtitle-track>] [-o <output-file>]
+    printf 'Usage: %s -i <video-file> [-a <audio-track] [-s <subtitle-track>] [-o <output-file>] [-p <padding>]
 Options:
-    -i Specify the video input
-    -a Specify the audio track number to use
-    -s Either specify the subtitle track number to use or specify an external subtitle file
-    -o Specify the output filename
-    -p Specify padding (in milliseconds) around subtitle timestamps. Must be less than 1000
-    -h Display this usage message
+    -i    Specify the video input
+    -a    Specify the audio track number to use
+    -s    Either specify the subtitle track number to use or specify an external subtitle file
+    -o    Specify the output filename
+    -p    Specify padding (in milliseconds) around subtitle timestamps; must be less than 1000
+    -k    Keep intermediate files stored under /tmp; useful for debugging purposes
+    -h    Display this usage message
 
-Only the -i option is required. If not specified, the default behavior is to use
-the first audio track and the first subtitle track. The default output name is
-"output.mp3". Similar to ffmpeg, the extension of the output name determines the
-format of the output.\n' "$(basename $0)"
+Only the -i option is required. If not specified, the default behavior is to use the first audio track and the first subtitle track. The default output name is "output.mp3". Similar to ffmpeg, the extension of the output name determines the format of the output.\n' "$(basename $0)"
     exit 0
 }
 
@@ -78,7 +73,7 @@ pad_timestamps() {
         if expr "$begin" ">" "00:00:00.$padding" > /dev/null; then
             new_begin="$(date +"%T.%2N" -d "01 Jan 1970 $begin - 0.$padding seconds")"
         else
-            new_begin="00:00:00.000"
+            new_begin="00:00:00.00"
         fi
         new_end="$(date +"%T.%2N" -d "01 Jan 1970 $end + 0.$padding seconds")"
 
@@ -95,17 +90,22 @@ while [ -n "$1" ]; do
         "-s") shift; subs="$1"    ;;
         "-o") shift; output="$1"  ;;
         "-p") shift; padding="$1" ;;
+        "-k") keep=1              ;;
         "-h") usage               ;;
         *) error "There was an error parsing arguments. Make sure to use the -i option." ;;
     esac
     shift
 done
 
+temp=$(mktemp -d)
+[ -z "$keep" ] && trap 'rm -rf $temp' EXIT
+
 timestamps="$(extract_timestamps "$subs" | pad_timestamps "${padding:-100}" | merge_timestamps)"
 audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
 ext=$(echo "${output:=output.mp3}" | sed 's/.*\.//')
 num="1"
 
+echo "Extracting audio clips based on subtitle timestamps..."
 for timestamp in $timestamps; do
     IFS=, read begin end <<< "$timestamp"
     ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.$ext"
@@ -120,4 +120,4 @@ base=$(basename "$file" | sed 's/\..*//')
 echo "Concatenating audio files..."
 ffmpeg -loglevel fatal -safe 0 -f concat -i "$temp/list.txt" "${output:-$base.mp3}"
 
-[ $? -eq 0 ] && echo "File '${output:=output.mp3}' was created successfully."
+[ $? -eq 0 ] && echo "File '${output:=$base.mp3}' was created successfully."
