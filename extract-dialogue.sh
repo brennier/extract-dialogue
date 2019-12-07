@@ -34,7 +34,10 @@ extract_timestamps() {
     fi
     [ -f "$temp/subs.ass" ] || error "No subtitles file found."
 
-    timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
+    dos2unix "$temp/subs.ass" 2> /dev/null
+    regex=$(grep '^Style:.*0$' "$temp/subs.ass" | cut -f 1 -d "," | \
+            sed 's/.*: /\\|/' | tr -d '\n' | sed 's/^.\{2\}//')
+    timestamps=$(grep "Dialogue:.*\($regex\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
 
     [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
     echo "$timestamps"
