@@ -7,7 +7,7 @@ First, ffmpeg is used to extract the subtitle file from the .mkv file. It then s
 There are several options that you can specify:  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -i   Specify the video input  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -a   Specify the audio track number to use  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -s   Specify the subtitle track number to use  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -s   Either specify the subtitle track number to use or specify the filename of an external subtitle file  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -o   Specify the output filename  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -h   Display usage message
 

@@ -7,7 +7,7 @@ usage() {
 Options:
     -i Specify the video input
     -a Specify the audio track number to use
-    -s Specify the subtitle track number to use
+    -s Either specify the subtitle track number to use or specify an external subtitle file
     -o Specify the output filename
     -h Display this usage message
 
