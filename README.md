@@ -9,6 +9,7 @@ There are several options that you can specify:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -a   Specify the audio track number to use  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -s   Either specify the subtitle track number to use or specify the filename of an external subtitle file  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -o   Specify the output filename  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -p   Specify padding (in milliseconds) around subtitle timestamps. Must be less than 1000  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -h   Display usage message
 
 Only the -i option is required. If not specified, the default behavior is to use
@@ -21,7 +22,7 @@ format of the output.
 * ~~Add option to specify output name~~
 * ~~Automatically merge overlapping timestamps (especially when using padding)~~
 * ~~Add option to use an external subtitles file~~
+* ~~Add the option to pad the timestamps in the subtitles file~~
 * Improve subtitle parsing
 * Improve documentation and error-handling
-* Add the option to pad the timestamps in the subtitles file
 * Parse bitmap-based subtitle files
