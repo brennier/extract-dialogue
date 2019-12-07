@@ -43,6 +43,51 @@ extract_timestamps() {
     echo "$timestamps"
 }
 
+merge_timestamps() {
+    # Takes a list of timestamp intervals from standard input and merges
+    # overlapping intervals
+    cur_begin=""
+    cur_end=""
+    for timestamp in $(cat - | tr ' ' '\n' | sort | tr '\n' ' '); do
+        begin=$(echo "$timestamp" | cut -f1 -d,)
+        end=$(  echo "$timestamp" | cut -f2 -d,)
+        [ -z "$cur_begin" ] && cur_begin="$begin"
+        [ -z "$cur_end" ] && cur_end="$end"
+
+        if earlier_than "$cur_end" "$begin"; then
+            echo "$cur_begin,$cur_end "
+            cur_begin=$begin
+            cur_end=$end
+        elif earlier_than "$cur_end" "$end"; then
+            cur_end="$end"
+        fi
+    done
+    echo "$cur_begin,$cur_end"
+}
+
+earlier_than() {
+    # Takes two timestamps in the format of HH:MM:SS.ss and
+    # determines whether the first occurs earlier than the second
+    hour1=$(echo "$1" | cut -f1 -d:)
+    hour2=$(echo "$2" | cut -f1 -d:)
+    min1=$(echo "$1" | cut -f2 -d:)
+    min2=$(echo "$2" | cut -f2 -d:)
+    sec1=$(echo "$1" | cut -f3 -d: | cut -f1 -d.)
+    sec2=$(echo "$2" | cut -f3 -d: | cut -f1 -d.)
+    msec1=$(echo "$1" | cut -f2 -d.)
+    msec2=$(echo "$2" | cut -f2 -d.)
+
+    [ $hour1 -lt $hour2 ] && return 0
+    [ $hour1 -gt $hour2 ] && return 1
+    [ $min1  -lt $min2  ] && return 0
+    [ $min1  -gt $min2  ] && return 1
+    [ $sec1  -lt $sec2  ] && return 0
+    [ $sec1  -gt $sec2  ] && return 1
+    [ $msec1 -lt $msec2 ] && return 0
+    [ $msec1 -gt $msec2 ] && return 1
+    return 1 # If they're the same, return false
+}
+
 [ -z "$1" ] && usage
 
 while [ -n "$1" ]; do
@@ -61,7 +106,7 @@ audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" 
 ext=$(echo "${output:=output.mp3}" | sed 's/.*\.\(.*\)/\1/')
 num=1
 
-for timestamp in $(extract_timestamps "$subs"); do
+for timestamp in $(extract_timestamps "$subs" | merge_timestamps); do
     begin=$(echo "$timestamp" | cut -f1 -d,)
     end=$(  echo "$timestamp" | cut -f2 -d,)
     ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.$ext"
