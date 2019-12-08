@@ -36,7 +36,7 @@ extract_timestamps() {
 
     dos2unix "$temp/subs.ass" 2> /dev/null
     regex=$(grep '^Style:.*0$' "$temp/subs.ass" | cut -f 1 -d "," | \
-            sed 's/.*: /\\|/' | tr -d '\n' | sed 's/^.\{2\}//')
+            sed 's/.*: /\\|/' | tr -d '\n' | sed 's/^..//')
     timestamps=$(grep "Dialogue:.*\($regex\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
 
     [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
@@ -49,7 +49,8 @@ merge_timestamps() {
     cur_begin=""
     cur_end=""
     for timestamp in $(cat /dev/stdin); do
-        IFS=, read begin end <<< "$timestamp"
+        begin=$(echo "$timestamp" | cut -f1 -d,)
+        end=$(  echo "$timestamp" | cut -f2 -d,)
         [ -z "$cur_begin" ] && cur_begin="$begin"
         [ -z "$cur_end" ]   && cur_end="$end"
 
@@ -71,14 +72,15 @@ pad_timestamps() {
     padding="$(printf "%03d" "$1")"
     [ "$padding" -gt 1000 ] && error "Padding is too large!"
     for timestamp in $(cat /dev/stdin); do
-        IFS=, read begin end <<< "$timestamp"
+        begin=$(echo "$timestamp" | cut -f1 -d,)
+        end=$(  echo "$timestamp" | cut -f2 -d,)
         # Use date to shift timestamps
         if expr "$begin" ">" "00:00:00.$padding" > /dev/null; then
-            new_begin="$(date +"%T.%2N" -d "01 Jan 1970 $begin - 0.$padding seconds")"
+            new_begin="$(date +"%T.%2N" -d "$begin - 0.$padding seconds")"
         else
             new_begin="00:00:00.00"
         fi
-        new_end="$(date +"%T.%2N" -d "01 Jan 1970 $end + 0.$padding seconds")"
+        new_end="$(date +"%T.%2N" -d "$end + 0.$padding seconds")"
 
         echo "$new_begin,$new_end"
     done
@@ -110,12 +112,13 @@ num="1"
 
 echo "Extracting audio clips based on subtitle timestamps..."
 for timestamp in $timestamps; do
-    IFS=, read begin end <<< "$timestamp"
+    begin=$(echo "$timestamp" | cut -f1 -d,)
+    end=$(  echo "$timestamp" | cut -f2 -d,)
     ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.$ext"
     if ffprobe -i "$temp/$num.$ext" 2> /dev/null; then
         echo "$num.$ext : $begin -> $end"
         echo "file '$temp/$num.$ext'" >> "$temp/list.txt"
-        (( num++ ))
+        num="$(( $num + 1 ))"
     fi
 done
 
