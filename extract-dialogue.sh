@@ -31,13 +31,19 @@ extract_timestamps() {
         subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
         [ -z "$subs_id" ] && error "No text-based subtitles found in '$file'."
         ffmpeg -loglevel fatal -i "$file" -map $subs_id "$temp/subs.ass"
+        [ -f "$temp/subs.ass" ] || error "Extraction failed."
     fi
-    [ -f "$temp/subs.ass" ] || error "No subtitles file found."
 
-    dos2unix "$temp/subs.ass" 2> /dev/null
-    regex=$(grep '^Style:.*0$' "$temp/subs.ass" | cut -f 1 -d "," | \
-            sed 's/.*: /\\|/' | tr -d '\n' | sed 's/^..//')
-    timestamps=$(grep "Dialogue:.*\($regex\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
+    # If there's a default style, only extract those subtitles
+    if [ -n "$(grep "^Style:.*\(Default\|Main\)" "$temp/subs.ass")" ]; then
+        timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
+    # If there are any non-encoded subtitles, only extract those. Otherwise extract all of them.
+    else
+        dos2unix "$temp/subs.ass" 2> /dev/null # Fix newlines
+        regex=$(grep '^Style:.*0$' "$temp/subs.ass" | cut -f 1 -d "," | \
+                sed 's/.*: /\\|/' | tr -d '\n' | sed 's/^..//')
+        timestamps=$(grep "Dialogue:.*\($regex\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
+    fi
 
     [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
     echo "$timestamps"
@@ -114,7 +120,7 @@ echo "Extracting audio clips based on subtitle timestamps..."
 for timestamp in $timestamps; do
     begin=$(echo "$timestamp" | cut -f1 -d,)
     end=$(  echo "$timestamp" | cut -f2 -d,)
-    ffmpeg -y -loglevel fatal -ss "$begin" -to "$end" -i "$file" -map $audio_id "$temp/$num.$ext"
+    ffmpeg -y -loglevel fatal -i "$file" -ss "$begin" -to "$end" -map $audio_id "$temp/$num.$ext"
     if ffprobe -i "$temp/$num.$ext" 2> /dev/null; then
         echo "$num.$ext : $begin -> $end"
         echo "file '$temp/$num.$ext'" >> "$temp/list.txt"
