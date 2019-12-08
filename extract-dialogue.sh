@@ -128,7 +128,7 @@ for timestamp in $timestamps; do
     fi
 done
 
-base=$(basename "$file" | sed 's/\..*//')
+base=$(basename "$file" | sed 's/\.[^.]*$//')
 echo "Concatenating audio files..."
 ffmpeg -loglevel fatal -safe 0 -f concat -i "$temp/list.txt" "${output:-$base.mp3}"
 
