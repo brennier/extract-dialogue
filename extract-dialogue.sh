@@ -28,7 +28,8 @@ extract_timestamps() {
     if [ -f "$subs" ]; then
         ffmpeg -loglevel fatal -i "$subs" "$temp/subs.ass"
     else
-        subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
+        subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" \
+                  | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
         [ -z "$subs_id" ] && error "No text-based subtitles found in '$file'."
         ffmpeg -loglevel fatal -i "$file" -map $subs_id "$temp/subs.ass"
         [ -f "$temp/subs.ass" ] || error "Extraction failed."
@@ -111,8 +112,10 @@ done
 temp=$(mktemp -d)
 [ -z "$keep" ] && trap 'rm -rf $temp' EXIT
 
-timestamps=$(extract_timestamps "$subs" | pad_timestamps "${padding:-100}" | merge_timestamps)
-audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
+timestamps=$(extract_timestamps "$subs" | pad_timestamps "${padding:-100}" \
+             | sort | merge_timestamps)
+audio_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Audio" \
+           | sed -n "${audio:-1}p" | grep -o '[0-9]:[0-9]')
 ext=$(echo "${output:=output.mp3}" | sed 's/.*\.//')
 num="1"
 
@@ -120,7 +123,8 @@ echo "Extracting audio clips based on subtitle timestamps..."
 for timestamp in $timestamps; do
     begin=$(echo "$timestamp" | cut -f1 -d,)
     end=$(  echo "$timestamp" | cut -f2 -d,)
-    ffmpeg -y -loglevel fatal -i "$file" -ss "$begin" -to "$end" -map $audio_id "$temp/$num.$ext"
+    ffmpeg -y -loglevel fatal -i "$file" -map $audio_id \
+           -ss "$begin" -to "$end" "$temp/$num.$ext"
     if ffprobe -i "$temp/$num.$ext" 2> /dev/null; then
         echo "$num.$ext : $begin -> $end"
         echo "file '$temp/$num.$ext'" >> "$temp/list.txt"
@@ -130,6 +134,7 @@ done
 
 base=$(basename "$file" | sed 's/\.[^.]*$//')
 echo "Concatenating audio files..."
-ffmpeg -loglevel fatal -safe 0 -f concat -i "$temp/list.txt" "${output:-$base.mp3}"
+ffmpeg -loglevel fatal -safe 0 -f concat \
+       -i "$temp/list.txt" "${output:-$base.mp3}"
 
-[ $? -eq 0 ] && echo "File '${output:=$base.mp3}' was created successfully."
+[ $? -eq 0 ] && echo "File '${output:-$base.mp3}' was created successfully."
