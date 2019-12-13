@@ -35,16 +35,10 @@ extract_timestamps() {
         [ -f "$temp/subs.ass" ] || error "Extraction failed."
     fi
 
-    # If there's a default style, only extract those subtitles
-    if [ -n "$(grep "^Style:.*\(Default\|Main\)" "$temp/subs.ass")" ]; then
-        timestamps=$(grep "^Dialogue:.*\(Default\|Main\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
-    # If there are any non-encoded subtitles, only extract those. Otherwise extract all of them.
-    else
-        dos2unix "$temp/subs.ass" 2> /dev/null # Fix newlines
-        regex=$(grep '^Style:.*0$' "$temp/subs.ass" | cut -f 1 -d "," | \
-                sed 's/.*: /\\|/' | tr -d '\n' | sed 's/^..//')
-        timestamps=$(grep "Dialogue:.*\($regex\)" "$temp/subs.ass" | cut -f "2,3" -d "," | sort)
-    fi
+    # Extract the timestamps of dialogue without extra styling.
+    # This will exclude signs and most OPs/EDs.
+    timestamps=$(grep "^Dialogue:" "$temp/subs.ass" | grep -v ",{" \
+                 | cut -f "2,3" -d ",")
 
     [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
     echo "$timestamps"

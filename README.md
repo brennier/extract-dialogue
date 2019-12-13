@@ -21,6 +21,6 @@ Only the -i option is required. If not specified, the default behavior is to use
 * ~~Automatically merge overlapping timestamps (especially when using padding)~~
 * ~~Add option to use an external subtitles file~~
 * ~~Add the option to pad the timestamps in the subtitles file~~
-* Improve subtitle parsing
+* ~~Improve subtitle parsing~~ (Note: not perfect, but uses the same method as subs2srs)
 * Improve documentation and error-handling
 * Parse bitmap-based subtitle files
