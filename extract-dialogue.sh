@@ -7,6 +7,7 @@ Options:
     -s    Either specify the subtitle track number to use or specify an external subtitle file
     -o    Specify the output filename
     -p    Specify padding (in milliseconds) around subtitle timestamps
+    -k    Keep intermediate files stored under /tmp; useful for debugging purposes
     -h    Display this usage message
 
 Only the -i option is required. If not specified, the default behavior is to use the first audio track and the first subtitle track. The default output name is "output.mp3". Similar to ffmpeg, the extension of the output name determines the format of the output.\n' "$(basename $0)"
@@ -25,20 +26,21 @@ extract_timestamps() {
     subs=$1
     padding=$2
     if [ -f "$subs" ]; then
-        subtitles=$(ffmpeg -loglevel fatal -i "$subs" -f ass -)
+        ffmpeg -y -loglevel fatal -i "$subs" -f ass "$temp"
     else
         subs_id=$(ffprobe "$file" 2>&1 | grep "Stream .*Subtitle" \
                   | sed -n "${subs:-1}p" | grep -o '[0-9]:[0-9]')
         [ -z "$subs_id" ] && error "No text-based subtitles found in '$file'."
-        subtitles=$(ffmpeg -loglevel fatal -i "$file" -map $subs_id -f ass -)
+        ffmpeg -y -loglevel fatal -i "$file" -map $subs_id -f ass "$temp"
+        [ -f "$temp" ] || error "Extraction failed."
     fi
 
     # Extract the timestamps of dialogue without extra styling.
     # This will exclude signs and most OPs/EDs.
-    timestamps=$(echo "$subtitles" | grep "^Dialogue:" | grep -v ",{" \
+    timestamps=$(grep "^Dialogue:" "$temp" | grep -v ",{" \
                  | cut -f "2,3" -d "," | sort)
 
-    [ -z "$timestamps" ] && error "Extracting subtitles failed."
+    [ -z "$timestamps" ] && error "Subtitles file was found, but parsing failed."
 
     # Convert timestamps to milliseconds and pad the timestamps
     echo "$timestamps" | awk -F ':|,' -v p=$padding '{ printf "%d:%d\n", \
@@ -84,6 +86,9 @@ while [ -n "$1" ]; do
     esac
     shift
 done
+
+temp=$(mktemp)
+[ -z "$keep" ] && trap 'rm -f $temp' EXIT
 
 timestamps=$(extract_timestamps "$subs" "${padding:-100}" | merge_timestamps \
     | awk -F: '{ printf "%.3f:%.3f\n", ( $1 / 1000 ), ( $2 / 1000 ) }')
