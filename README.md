@@ -1,7 +1,7 @@
 # extract-dialogue
-Uses subtitle timestamps to extract the dialogue from an .mkv file. This script is written in plain Bourne Shell. The only dependency is ffmpeg.
+Uses subtitle timestamps to extract the dialogue from a video file. This script is written in plain Bourne Shell. The only dependency is ffmpeg.
 
-First, ffmpeg is used to extract the subtitle file from the .mkv file. It then splits and converts the audio track of the .mkv file according to the timestamps of the subtitle file. This requires the subtitles in a text-based format (i.e. subtitles that are in the format .ass, .ssa, or .srt). The audio cuts are then concatenated and written to the output filename (default is `output.mp3`).
+First, the timestamps from the subtitles are extracted. The subtitles can either be specified as an external file or as a track number if the input is a container format like .mkv. The subtitles are required to be in a text-based format (i.e. subtitles that are in the format .ass, .ssa, .srt, etc.). The timestamps are then padded and overlapping timestamps are merged. The script then sets up and executes a ffmpeg command for extracting the audio using an ffmpeg filter complex.
 
 ## Options
 There are several options that you can specify:  
@@ -10,7 +10,6 @@ There are several options that you can specify:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -s   Either specify the subtitle track number to use or specify the filename of an external subtitle file  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -o   Specify the output filename  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -p   Specify padding (in milliseconds) around subtitle timestamps; must be less than 1000  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -k   Keep intermediate files stored under /tmp; useful for debugging purposes  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -h   Display usage message
 
 Only the -i option is required. If not specified, the default behavior is to use the first audio track and the first subtitle track. The default output name is simply the name of the video file with the extension changed to .mp3.  The default padding is 100 milliseconds. Similar to ffmpeg, the extension of the output name determines the format of the output.
@@ -22,5 +21,6 @@ Only the -i option is required. If not specified, the default behavior is to use
 * ~~Add option to use an external subtitles file~~
 * ~~Add the option to pad the timestamps in the subtitles file~~
 * ~~Improve subtitle parsing~~ (Note: not perfect, but uses the same method as subs2srs)
-* Improve documentation and error-handling
+* Improve documentation
+* Improve error-handling
 * Parse bitmap-based subtitle files
